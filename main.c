@@ -8,6 +8,18 @@ typedef struct
     int a, b;
 }line;
 
+typedef struct
+{
+    Vector3 points[3];
+}triangle;
+
+void draw_triangle(Vector2 a, Vector2 b, Vector2 c, Color color)
+{
+    DrawLineV(a, b, color);
+    DrawLineV(b, c, color);
+    DrawLineV(c, a, color);
+}
+
 // projection to screen space
 // x_projected = (x_world / (z_world * tan(fov / 2)) / aspect_ratio
 // y_projected = y_world / (z_world * tan(fov / 2))
@@ -20,10 +32,10 @@ Vector2 project_to_screen_space(Vector3 *world_vec, float fov, float aspect_rati
     return result_vec;
 }
 
-Vector2 scale_to_screen(Vector2 *vec, int widht, int height)
+Vector2 scale_to_screen(Vector2 *vec, int width, int height)
 {
     Vector2 scaled;
-    scaled.x = vec->x * (widht * 0.5f) + widht * 0.5f;
+    scaled.x = vec->x * (width * 0.5f) + width * 0.5f;
     scaled.y = -vec->y * (height * 0.5f) + height * 0.5f;
     return scaled;
 }
@@ -49,54 +61,43 @@ Vector3 rotate_y(Vector3 *vec, float angle)
 
 int main(void)
 {
-    const int screen_widht = 800;
+    const int screen_width = 800;
     const int screen_height = 450;
 
-    float aspect_ratio = (float)screen_widht / (float)screen_height;
+    float aspect_ratio = (float)screen_width / (float)screen_height;
     float fov = 90.0f;
     float angle = 0.0f;
 
-    InitWindow(screen_widht, screen_height, "rotating cube");
+    InitWindow(screen_width, screen_height, "rotating cube");
 
     SetTargetFPS(60);
 
-    const Vector3 cube[] = 
+    const triangle mesh[] = 
     {
-        // front
-        {-0.5, -0.5, -0.5},
-        {-0.5, 0.5, -0.5},
-        {0.5, 0.5, -0.5},
-        {0.5, -0.5, -0.5},
+        // south
+        {{{0.0f, 0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 0.0f}}},
+        {{{0.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}}},
 
-        // side
-        {-0.5, -0.5, 0.5},
-        {-0.5, 0.5, 0.5},
-        {0.5, 0.5, 0.5},
-        {0.5, -0.5, 0.5}
+        // east                                                      
+        {{{1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 1.0f}}},
+        {{{1.0f, 0.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 0.0f, 1.0f}}},
+
+        // north                                                     
+        {{{1.0f, 0.0f, 1.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 1.0f}}},
+        {{{1.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}}},
+
+        // west                                                      
+        {{{0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 1.0f}, {0.0f, 1.0f, 0.0f}}},
+        {{{0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f, 0.0f}}},
+
+        // top                                                       
+        {{{0.0f, 1.0f, 0.0f}, {0.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}}},
+        {{{0.0f, 1.0f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 0.0f}}},
+
+        // bottom                                                    
+        {{{1.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 0.0f}}},
+        {{{1.0f, 0.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 0.0f, 0.0f}}},
     };
-
-    const line lines[] = 
-    {
-        // front
-        {0, 1},
-        {1, 2},
-        {2, 3},
-        {3, 0},
-
-        // back
-        {4, 5},
-        {5, 6},
-        {6, 7},
-        {7, 4},
-
-        // side
-        {0, 4},
-        {1, 5},
-        {2, 6},
-        {3, 7}
-    };
-
-    Vector2 cube_projected[sizeof(cube) / sizeof(Vector3)];
 
     while(!WindowShouldClose())
     {
@@ -104,30 +105,30 @@ int main(void)
         BeginDrawing();
             ClearBackground(RAYWHITE);
 
-            for (int i = 0; i < sizeof(cube) / sizeof(Vector3); i++)
+            for (int i = 0; i < sizeof(mesh) / sizeof(triangle); i++)
             {
-                Vector3 world_vec = cube[i];
+                triangle curr_triangle = mesh[i];
                 
-                world_vec = rotate_y(&world_vec, angle);
+                curr_triangle.points[0] = rotate_y(&curr_triangle.points[0], angle);
+                curr_triangle.points[1] = rotate_y(&curr_triangle.points[1], angle);
+                curr_triangle.points[2] = rotate_y(&curr_triangle.points[2], angle);
                 
                 // shift in the back
-                world_vec.z += 4;
+                curr_triangle.points[0].z += 4;
+                curr_triangle.points[1].z += 4;
+                curr_triangle.points[2].z += 4;
+                
+                Vector2 screen_space[3];
 
-                cube_projected[i] = project_to_screen_space(&world_vec, fov, aspect_ratio);
+                screen_space[0] = project_to_screen_space(&curr_triangle.points[0], fov, aspect_ratio);
+                screen_space[1] = project_to_screen_space(&curr_triangle.points[1], fov, aspect_ratio);
+                screen_space[2] = project_to_screen_space(&curr_triangle.points[2], fov, aspect_ratio);
+                
+                screen_space[0] = scale_to_screen(&screen_space[0], screen_width, screen_height);
+                screen_space[1] = scale_to_screen(&screen_space[1], screen_width, screen_height);
+                screen_space[2] = scale_to_screen(&screen_space[2], screen_width, screen_height);
 
-                Vector2 scaled = scale_to_screen(&cube_projected[i], screen_widht, screen_height);
-
-                DrawCircleV(scaled, 5, BLACK);
-            }
-
-            // draw lines
-            for (int i = 0; i < sizeof(lines) / sizeof(line); i++)
-            {
-                Vector2 a, b;
-                a = scale_to_screen(&cube_projected[lines[i].a], screen_widht, screen_height);
-                b = scale_to_screen(&cube_projected[lines[i].b], screen_widht, screen_height);
-
-                DrawLineV(a, b, BLACK);
+                draw_triangle(screen_space[0], screen_space[1], screen_space[2], BLACK);
             }
 
             EndDrawing();
